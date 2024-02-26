@@ -10,7 +10,6 @@ from utils.iia import compute_accuracy, compute_accuracy_sum_joint, compute_accu
 args = Namespace()
 args.data_location = 'C:/Users/debryu/Desktop/VS_CODE/HOME/ML/data/'
 args.data_folder = 'custom_task'
-args.meaningful_interv = 10000
 args.num_workers = 1
 '''
 This is the dataset to choose from
@@ -40,11 +39,7 @@ From testing, the batch size highly affects the training of the model
 args.batch_size = 300
 
 args.model_save_path = "C:/Users/debryu/Desktop/VS_CODE/HOME/ML/data/models"
-'''
-This is the model to choose from
 
-It has to be located inside args.model_save_path
-'''
 
 ''' 
 Select the run between 'joint', 'in-between' and 'aligned'
@@ -84,7 +79,9 @@ def main():
     # Load the model
     if not args.custom_task:
       '''
-        Choose the model (split or joint ) by uncommenting
+      This is the model to choose from
+      It has to be located inside args.model_save_path
+        Choose the model (split or joint ) by uncommenting one of the two lines below
       '''
       model = ADDITION_SPLIT(args = args).to(args.device)
       args.model_name = 'sum_model_split.pt'

@@ -3,6 +3,7 @@ from tqdm import tqdm
 from models.alignment_model import compute_intervention, compute_intervention_sum
 
 def compute_accuracy(backbone, rot_model, test_dl, layer, args):
+  '''Compute IIA for the custom task models'''
   targ_layer = layer['layer']
   correct = 0
   total = 0
@@ -187,6 +188,7 @@ def compute_accuracy(backbone, rot_model, test_dl, layer, args):
   print(f"Baseline Accuracy: {correct_baseline/total_baseline}")
 
 def compute_accuracy_sum_joint(backbone, rot_model, test_dl, layer, args):
+  '''Compute IIA for MNIST-addition joint model'''
   targ_layer = layer['layer']
   correct = 0
   total = 0
@@ -256,6 +258,7 @@ def compute_accuracy_sum_joint(backbone, rot_model, test_dl, layer, args):
   print(f"Baseline Accuracy: {correct_baseline/total_baseline}")
 
 def compute_accuracy_sum_split(backbone, rot_model, test_dl, layer, args):
+  '''Compute IIA for MNIST-addition split model'''
   targ_layer = layer['layer']
   correct = 0
   total = 0

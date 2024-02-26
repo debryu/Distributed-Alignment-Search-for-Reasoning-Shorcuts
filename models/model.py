@@ -76,6 +76,7 @@ class MLP_MODULE(torch.nn.Module):
 
 
 class CUSTOM_OPERATION(torch.nn.Module):
+  '''Model for the custom task, with in-between architecture.'''
   def __init__(self, args: Namespace):
     super(CUSTOM_OPERATION, self).__init__()
     self.model_type = 'in-between'
@@ -99,6 +100,7 @@ class CUSTOM_OPERATION(torch.nn.Module):
   
 
 class SUMMATION_MODULE(torch.nn.Module):
+  '''Summation module for predicting the sum from a MLP.'''
   def __init__(self, c_dim = 10, hidden = 256, num_images = 2):
     super(SUMMATION_MODULE, self).__init__()
     self.layer1 = torch.nn.Linear(c_dim*num_images, hidden)
@@ -132,6 +134,7 @@ class SUMMATION_MODULE(torch.nn.Module):
     return sum, l1, l2, l3
   
 class ADDITION_SPLIT(torch.nn.Module):
+  '''Model for the MNIST addition task, split (disentalgled) version.'''
   def __init__(self, args, c_dim = 10, hidden = 256, num_images = 2):
     super(ADDITION_SPLIT, self).__init__()
     self.model_type = 'only_sum_split'
@@ -156,6 +159,7 @@ class ADDITION_SPLIT(torch.nn.Module):
     return sum, concept1, concept2, l1, l2, l3
 
 class ADDITION_JOINT(torch.nn.Module):
+  '''Model for the MNIST addition task, joint version.'''
   def __init__(self, args: Namespace, conv_channels = 4, c_dim = 20, hidden = 256):
     super(ADDITION_JOINT, self).__init__()
     self.model_type = 'only_sum_joint'
@@ -240,6 +244,7 @@ class ADDITION_JOINT(torch.nn.Module):
     return x, e1, e2, e3, d_c, l1, l2, l3 
 
 class DISEQ_MODULE(torch.nn.Module):
+  '''Module for solving the inequality in the custom task.'''
   def __init__(self, sum_dim = 19, hidden = 512, num_images = 2, out_dim = 2):
     super(DISEQ_MODULE, self).__init__()
     self.layer1 = torch.nn.Linear(sum_dim*num_images, hidden)
@@ -270,6 +275,7 @@ class DISEQ_MODULE(torch.nn.Module):
 
 
 class ALIGNED_CUSTOM_OPERATION(torch.nn.Module):
+  '''Model for the custom task, with aligned architecture.'''
   def __init__(self, args: Namespace, conv_channels = 4, concepts_dim = 10, output_dim = 2):
     super(ALIGNED_CUSTOM_OPERATION, self).__init__()
     self.model_type = 'aligned'
@@ -321,6 +327,7 @@ class ALIGNED_CUSTOM_OPERATION(torch.nn.Module):
   
 
 class JOINT_CUSTOM_OPERATION(torch.nn.Module):
+  '''Model for the custom task, with joint architecture.'''
   def __init__(self, args: Namespace, conv_channels = 4, c_dim = 20, hidden = 256):
     super(JOINT_CUSTOM_OPERATION, self).__init__()
     self.model_type = 'joint'

@@ -33,6 +33,7 @@ def compute_intervention_sum(concepts, site_type):
        
 
 def eval_rotation(rotation_model, model, dataloader, args, layer_dim = 256, interchange_dim = None):
+  '''CURRENTLY NOT USED - Evaluate the rotation matrix for the intervention'''
   criterion = torch.nn.CrossEntropyLoss()
   rotation_model.eval()
   eval_losses = []
@@ -418,6 +419,7 @@ def train_rotation_sum_split(model, dataloader, args, layer, interchange_dim = N
   return trainable_rot
 
 class Rotation(torch.nn.Module):
+  '''Parametrize the rotation matrix for the intervention'''
   def __init__(self, dim , init_orth = True):
     super(Rotation, self).__init__()
     self.dim = dim
@@ -430,6 +432,7 @@ class Rotation(torch.nn.Module):
     return torch.matmul(x, self.weight)
 
 class DistributedInterchangeIntervention(torch.nn.Module):
+  '''Model to learn the rotation matrix for the intervention'''
   def __init__(self, layer_dim, args, interchange_dim = None, init_orth = True):
     super(DistributedInterchangeIntervention, self).__init__()
     self.rotation_matrix = Rotation(layer_dim, init_orth)
@@ -443,16 +446,11 @@ class DistributedInterchangeIntervention(torch.nn.Module):
 
 
   def forward(self, base, source, site_idx):
-    #print(base.shape, source.shape)
     #assert base.shape == source.shape, "Base and source must have the same shape"
-    #print(base.shape[-1], self.layer_dim)
     #assert base.shape[-1] == self.layer_dim, "Base and source must have the same shape"
 
     rotated_base = self.rotation_operator(base)
-    #print('base',rotated_base)
     rotated_source = self.rotation_operator(source)
-    #print('sorce',rotated_source)
-    #print(self.layer_dim, self.interchange_dim)
     assert self.layer_dim % self.interchange_dim == 0, "interchange_dim should divide layer_dim evenly"
     
     rotated_base = rotated_base.reshape(-1, self.layer_dim // self.interchange_dim, self.interchange_dim)
@@ -463,5 +461,4 @@ class DistributedInterchangeIntervention(torch.nn.Module):
     rotated_base = rotated_base.reshape(-1, self.layer_dim)
     
     new_base = torch.matmul(rotated_base, self.rotation_operator.weight.T)  # Orth matrix inverse is the transpose
-    #print('new_base',new_base)
     return new_base

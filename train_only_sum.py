@@ -32,11 +32,13 @@ dataset_dimensions= {f'{args.file_name}_train':args.train_examples, f'{args.file
 data_folder = os.path.join(args.data_location, args.data_folder)
 
 def sum_calculator(concepts: torch.Tensor):
+    '''Calculate the sum of the labels'''
     sum = concepts[:,0] + concepts[:,1]
     
     return sum
 
 def accuracy(model,dl):
+    '''Calculate the accuracy of the MNIST addition model'''
     correct = 0
     total = 0
     for imgs,labels,concepts in dl:
@@ -52,6 +54,7 @@ def accuracy(model,dl):
     return correct/total
   
 def train_split(train_dl,test_dl,args):
+    '''Train the split model for simple MNIST addition task'''
     model = ADDITION_SPLIT(args = args)
     model = model.to(args.device)
     criterion = torch.nn.CrossEntropyLoss()
@@ -111,6 +114,7 @@ def train_split(train_dl,test_dl,args):
             break
             
 def train_joint(train_dl,test_dl,args):
+    '''Train the joint model for simple MNIST addition task'''
     model = ADDITION_JOINT(args = args)
     model = model.to(args.device)
     criterion = torch.nn.CrossEntropyLoss()
@@ -125,11 +129,8 @@ def train_joint(train_dl,test_dl,args):
     for epoch in range(args.num_epochs):
       train_losses = []
       for imgs,labels,concepts in tqdm(train_dl):
-          
           sum = sum_calculator(concepts)
-          #rhs = rhs.type(torch.LongTensor).to(args.device)
           sum = sum.type(torch.LongTensor).to(args.device)
-        
           out,_,_,_,_,_,_ = model(imgs.to(args.device))
           loss = criterion(out, sum)
           train_losses.append(loss.item())

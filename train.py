@@ -14,13 +14,15 @@ args.num_epochs = 100
 args.batch_size = 128
 args.num_workers = 1
 args.eval_check = 7
-args.file_name = 'das_dataset_no_constraints_no_interventions'
-args.constraint = False
+args.file_name = 'das_dataset_no_constraints_no_interventions'      # The name of the dataset
+# If the dataset does not exist, it will be created with...
+args.constraint = True 
 args.sequence_len = 4
 args.train_examples = 10000
 args.test_examples = 10000
-args.model_save_path = "C:/Users/debryu/Desktop/VS_CODE/HOME/ML/data/models/"
-args.saved_model_name = 'unconstrained'
+
+args.model_save_path = "C:/Users/debryu/Desktop/VS_CODE/HOME/ML/data/models/" # The path where the model will be saved
+args.saved_model_name = 'unconstrained'     # The name that will be given to the saved model
 args.custom_task = True # Set this to True if you want to use the custom task, or False if you want to use the simple sum task
 '''
 If you choose the custom task,
@@ -38,11 +40,13 @@ dataset_dimensions= {f'{args.file_name}_train':args.train_examples, f'{args.file
 data_folder = os.path.join(args.data_location, args.data_folder)
 
 def sum_calculator(concepts: torch.Tensor):
+    '''Calculate the left and right sum of the labels for the custom task'''
     lhs = concepts[:,0] + concepts[:,1]
     rhs = concepts[:,2] + concepts[:,3]
     return lhs, rhs
 
 def accuracy(model,dl):
+    '''Calculate the accuracy of the custom model'''
     correct = 0
     total = 0
     for imgs,labels,concepts in dl:
