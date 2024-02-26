@@ -156,7 +156,7 @@ class ADDITION_SPLIT(torch.nn.Module):
     return sum, concept1, concept2, l1, l2, l3
 
 class ADDITION_JOINT(torch.nn.Module):
-  def __init__(self, args: Namespace, conv_channels = 4, c_dim = 20):
+  def __init__(self, args: Namespace, conv_channels = 4, c_dim = 20, hidden = 256):
     super(ADDITION_JOINT, self).__init__()
     self.model_type = 'only_sum_joint'
     self.args = args
@@ -166,27 +166,29 @@ class ADDITION_JOINT(torch.nn.Module):
       torch.nn.ReLU()
     )
     self.encoder2 = torch.nn.Sequential(
-      torch.nn.Conv2d(conv_channels, conv_channels*2, kernel_size=4, stride=2, padding=1), # 8,16 *4
+      torch.nn.Conv2d(conv_channels, conv_channels*4, kernel_size=4, stride=2, padding=1), # 8,16 *4
       torch.nn.ReLU()
     )
     self.encoder3 = torch.nn.Sequential(
-      torch.nn.Conv2d(conv_channels*2, conv_channels*4, kernel_size=4, stride=2, padding=1), # 4,8 *16
+      torch.nn.Conv2d(conv_channels*4, conv_channels*16, kernel_size=4, stride=2, padding=1), # 4,8 *16
       torch.nn.ReLU()
     )
     self.activation = torch.nn.ReLU()
     self.dropout = torch.nn.Dropout(p=0.4)
-    self.dense_c = torch.nn.Linear(512, 128) # *4*8
-    self.layer1 = torch.nn.Linear(128, 128)
-    self.layer2 = torch.nn.Linear(128, 128)
-    self.layer3 = torch.nn.Linear(128, 128)
-    self.classifier = torch.nn.Linear(128, c_dim-1)
+    self.dense_c = torch.nn.Linear(conv_channels*16*4*8, hidden) # *4*8
+    self.layer1 = torch.nn.Linear(hidden, hidden)
+    self.layer2 = torch.nn.Linear(hidden, hidden)
+    self.layer3 = torch.nn.Linear(hidden, hidden)
+    self.classifier = torch.nn.Linear(hidden, c_dim-1)
     
   def forward(self, x,
               intervention_encoder1 = None, intervention_encoder2 = None, intervention_encoder3 = None,
+              intervention_dense_c = None,
               intervention_layer1 = None, intervention_layer2 = None, intervention_layer3 = None
               ):
     batch_size = x.shape[0]
     x = self.encoder1(x)
+    
     x = self.dropout(x)
     #print('x', x.shape)
     e1 = x.reshape(batch_size,-1)
@@ -194,21 +196,29 @@ class ADDITION_JOINT(torch.nn.Module):
       x = intervention_encoder1.reshape(batch_size,self.conv_channels,16,32)
     #print(x.shape)
     x = self.encoder2(x)
+    
     x = self.dropout(x)
     e2 = x.reshape(batch_size,-1)
+    
     if intervention_encoder2 is not None:
-      x = intervention_encoder2.reshape(batch_size,self.conv_channels*2,8,16)
+      x = intervention_encoder2.reshape(batch_size,self.conv_channels*4,8,16)
     #print(x.shape)
     x = self.encoder3(x)
+    
     x = self.dropout(x)
     e3 = x.reshape(batch_size,-1)
     if intervention_encoder3 is not None:
-      x = intervention_encoder3.reshape(batch_size,self.conv_channels*4,4,8) 
+      x = intervention_encoder3.reshape(batch_size,self.conv_channels*16,4,8) 
     #print(x.shape)
-      
-    
+    '''
+    print('e1', e1.shape)
+    print('e2', e2.shape)
+    print('e3', e3.shape)
+    '''
     x = self.dense_c(x.reshape(batch_size,-1))
-  
+    d_c = x
+    if intervention_dense_c is not None:
+      x = intervention_dense_c
 
     # MLP
     x = self.layer1(x)
@@ -227,7 +237,7 @@ class ADDITION_JOINT(torch.nn.Module):
       l3 = intervention_layer3
     
     x = self.classifier(l3)
-    return x, e1, e2, e3, l1, l2, l3 
+    return x, e1, e2, e3, d_c, l1, l2, l3 
 
 class DISEQ_MODULE(torch.nn.Module):
   def __init__(self, sum_dim = 19, hidden = 512, num_images = 2, out_dim = 2):
@@ -310,5 +320,83 @@ class ALIGNED_CUSTOM_OPERATION(torch.nn.Module):
     return out, concept1, concept2, concept3, concept4, sum_1, sum_2, d_l1, d_l2, d_l3, s_l11, s_l12, s_l13, s_l21, s_l22, s_l23
   
 
+class JOINT_CUSTOM_OPERATION(torch.nn.Module):
+  def __init__(self, args: Namespace, conv_channels = 4, c_dim = 20, hidden = 256):
+    super(JOINT_CUSTOM_OPERATION, self).__init__()
+    self.model_type = 'joint'
+    self.args = args
+    self.conv_channels = conv_channels
+    self.encoder1 = torch.nn.Sequential(
+      torch.nn.Conv2d(1, conv_channels, kernel_size=4, stride=2, padding=(3,1)), # 16,56
+      torch.nn.ReLU()
+    )
+    self.encoder2 = torch.nn.Sequential(
+      torch.nn.Conv2d(conv_channels, conv_channels*4, kernel_size=4, stride=2, padding=1), # 8,24
+      torch.nn.ReLU()
+    )
+    self.encoder3 = torch.nn.Sequential(
+      torch.nn.Conv2d(conv_channels*4, conv_channels*16, kernel_size=4, stride=2, padding=1), # 4,14
+      torch.nn.ReLU()
+    )
+    self.activation = torch.nn.ReLU()
+    self.dropout = torch.nn.Dropout(p=0.4)
+    self.dense_c = torch.nn.Linear(3584, hidden) # *4*8
+    self.layer1 = torch.nn.Linear(hidden, hidden)
+    self.layer2 = torch.nn.Linear(hidden, hidden)
+    self.layer3 = torch.nn.Linear(hidden, hidden)
+    self.classifier = torch.nn.Linear(hidden, c_dim-1)
+    
+  def forward(self, x,
+              intervention_encoder1 = None, intervention_encoder2 = None, intervention_encoder3 = None,
+              intervention_dense_c = None,
+              intervention_layer1 = None, intervention_layer2 = None, intervention_layer3 = None
+              ):
+    batch_size = x.shape[0]
+    x = self.encoder1(x)
+    x = self.dropout(x)
+    #print('x', x.shape)
+    e1 = x.reshape(batch_size,-1)
+    if intervention_encoder1 is not None:
+      x = intervention_encoder1.reshape(batch_size,self.conv_channels,16,56) #16,60
+    x = self.encoder2(x)
+    x = self.dropout(x)
+    #print('x', x.shape)
+    e2 = x.reshape(batch_size,-1)
+    
+    if intervention_encoder2 is not None:
+      x = intervention_encoder2.reshape(batch_size,self.conv_channels*4,8,28)
+    x = self.encoder3(x)
+    x = self.dropout(x)
+    #print('x', x.shape)
+    e3 = x.reshape(batch_size,-1)
+    if intervention_encoder3 is not None:
+      x = intervention_encoder3.reshape(batch_size,self.conv_channels*16,4,14) 
+    #print(x.shape)
+  
+    #print('e1', e1.shape)
+    #print('e2', e2.shape)
+    #print('e3', e3.shape)
+    
+    x = self.dense_c(x.reshape(batch_size,-1))
+    d_c = x
+    if intervention_dense_c is not None:
+      x = intervention_dense_c
 
+    # MLP
+    x = self.layer1(x)
+    l1 = self.activation(x)
+    if intervention_layer1 is not None:
+      l1 = intervention_layer1
 
+    x = self.layer2(l1)
+    l2 = self.activation(x)
+    if intervention_layer2 is not None:
+      l2 = intervention_layer2
+    
+    x = self.layer3(l2)
+    l3 = self.activation(x)
+    if intervention_layer3 is not None:
+      l3 = intervention_layer3
+    
+    x = self.classifier(l3)
+    return x, e1, e2, e3, d_c, l1, l2, l3 

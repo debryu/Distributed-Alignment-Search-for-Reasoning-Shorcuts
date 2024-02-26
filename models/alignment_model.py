@@ -119,27 +119,15 @@ def train_rotation(model, dataloader, args, layer, interchange_dim = None):
         if model.model_type == 'in-between':
           base,_,_,_,_,_,_,l01,l02,l03 = model(img_base)
           source1,_,_,_,_,_,_,l11,l12,l13 = model(img_source1)
-          #site_type_s1 = {'element':[0,1,0,1], 'source':[0,0,1,1]} # A B E F
-          site_type_s1_2 = {'element':[0,1,2,3], 'source':[0,0,1,1]} # A B G H
-          site_type_s1_3 = {'element':[0,1,2,3], 'source':[1,1,0,0]} # E F C D
-          #site_type_s1_4 = {'element':[2,3,2,3], 'source':[1,1,0,0]} # G H C D
           source2,_,_,_,_,_,_,l21,l22,l23 = model(img_source2)
-          #site_type_s2 = {'element':[0,1,2,3], 'source':[0,0,1,1]} # A B G H
-          site_type_s2_2 = {'element':[0,1,2,3], 'source':[0,0,2,2]} # A B M N
-          site_type_s2_3 = {'element':[0,1,2,3], 'source':[2,2,0,0]} # I L C D
-          #site_type_s2_4 = {'element':[2,3,2,3], 'source':[2,2,0,0]} # M N C D
         elif model.model_type == 'aligned':
           base, c01, c02, c03, c04, sum0_1, sum0_2, d0_l1, d0_l2, d0_l3, s0_l11, s0_l12, s0_l13, s0_l21, s0_l22, s0_l23 = model(img_base)
           source1, c11, c12, c13, c14, sum1_1, sum1_2, d1_l1, d1_l2, d1_l3, s1_l11, s1_l12, s1_l13, s1_l21, s1_l22, s1_l23 = model(img_source1)
-          #site_type_s1 = {'element':[0,1,0,1], 'source':[0,0,1,1]} # A B E F
-          site_type_s1_2 = {'element':[0,1,2,3], 'source':[0,0,1,1]} # A B G H
-          site_type_s1_3 = {'element':[0,1,2,3], 'source':[1,1,0,0]} # E F C D
-          #site_type_s1_4 = {'element':[2,3,2,3], 'source':[1,1,0,0]} # G H C D
           source2, c21, c22, c23, c24, sum2_1, sum2_2, d2_l1, d2_l2, d2_l3, s2_l11, s2_l12, s2_l13, s2_l21, s2_l22, s2_l23 = model(img_source2)
-          #site_type_s2 = {'element':[0,1,0,1], 'source':[0,0,2,2]} # A B I L
-          site_type_s2_2 = {'element':[0,1,2,3], 'source':[0,0,2,2]} # A B M N
-          site_type_s2_3 = {'element':[0,1,2,3], 'source':[2,2,0,0]} # I L C D
-          #site_type_s2_4 = {'element':[2,3,2,3], 'source':[2,2,0,0]} # M N C D
+        elif model.model_type == 'joint':
+          base,e01,e02,e03,d0_c,l01,l02,l03 = model(img_base)
+          source1,e11,e12,e13,d1_c,l11,l12,l13 = model(img_source1)
+          source2,e21,e22,e23,d2_c,l21,l22,l23 = model(img_source2)
 
 
         
@@ -173,16 +161,20 @@ def train_rotation(model, dataloader, args, layer, interchange_dim = None):
         interv_single_digit2 = torch.cat((I,B,C,D),dim=-1).to(args.device)
         site_type_single_digit2 = {'element':[0,1,2,3], 'source':[2,0,0,0]}
 
+        # To detect sum concept
         interventions = [
           {'intervention': intervened_base_1, 'labels': compute_intervention(concepts,site_type_1), 'index': 0},
+          {'intervention': intervened_base_2, 'labels': compute_intervention(concepts,site_type_2), 'index': 1},
           {'intervention': intervened_base_3, 'labels': compute_intervention(concepts,site_type_3), 'index': 0},
+          {'intervention': intervened_base_4, 'labels': compute_intervention(concepts,site_type_4), 'index': 1},
         ]
-
+        '''
         # To detect the single digit concept
         interventions = [
           {'intervention': interv_single_digit1, 'labels': compute_intervention(concepts,site_type_single_digit1), 'index': 0},
           {'intervention': interv_single_digit2, 'labels': compute_intervention(concepts,site_type_single_digit2), 'index': 0},
         ]
+        '''
         losses = [] 
         
         for intervention in interventions:   # Do the intervention for each site depending on the high level model
@@ -192,6 +184,28 @@ def train_rotation(model, dataloader, args, layer, interchange_dim = None):
           #source_output,_,_,_,_,_,_,ls1,ls2,ls3 = model(i_input)
           #l01 = torch.zeros((16,2)).to(args.device)
           #l11 = torch.ones((16,2)).to(args.device)
+          if model.model_type == 'joint':
+            if targ_layer == 'e1':
+              intervened_base = trainable_rot(e01, e11, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = model(img_base, intervention_encoder1 = intervened_base)
+            elif targ_layer == 'e2':
+              intervened_base = trainable_rot(e02, e12, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = model(img_base, intervention_encoder2 = intervened_base)
+            elif targ_layer == 'e3':
+              intervened_base = trainable_rot(e03, e13, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = model(img_base, intervention_encoder3 = intervened_base)
+            elif targ_layer == 'dc':
+              intervened_base = trainable_rot(d0_c, d1_c, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = model(img_base, intervention_dense_c = intervened_base)
+            elif targ_layer == 'l1':
+              intervened_base = trainable_rot(l01, l11, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = model(img_base, intervention_layer1 = intervened_base)
+            elif targ_layer == 'l2':
+              intervened_base = trainable_rot(l02, l12, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = model(img_base, intervention_layer2 = intervened_base)
+            elif targ_layer == 'l3':
+              intervened_base = trainable_rot(l03, l13, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = model(img_base, intervention_layer3 = intervened_base)
           if model.model_type == 'in-between':
             if targ_layer == 'l1':
               intervened_base = trainable_rot(l01, l11, site_idx = site_idx)
@@ -202,12 +216,6 @@ def train_rotation(model, dataloader, args, layer, interchange_dim = None):
             elif targ_layer == 'l3':
               intervened_base = trainable_rot(l03, l13, site_idx = site_idx)
               intervened_output,_,_,_,_,_,_,l1,l2,l3 = model(img_base, intervention_layer3 = intervened_base)
-            elif targ_layer == 'base':
-              intervened_output,_,_,_,_,_,_,l1,l2,l3 = model(img_base)
-            elif targ_layer == 'source1':
-              intervened_output,_,_,_,_,_,_,l1,l2,l3 = model(source1)
-            elif targ_layer == 'source2':
-              intervened_output,_,_,_,_,_,_,l1,l2,l3 = model(source2)
           elif model.model_type == 'aligned':
             if targ_layer == 'l1':
               base_layer = torch.cat([s0_l11, s0_l21], dim=-1)
@@ -233,12 +241,6 @@ def train_rotation(model, dataloader, args, layer, interchange_dim = None):
             elif targ_layer == 'd3':
               intervened_base = trainable_rot(d0_l3, d1_l3, site_idx = site_idx)
               intervened_output,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_ = model(img_base, dis_layer3 = intervened_base)
-            elif targ_layer == 'base':
-              intervened_output = base
-            elif targ_layer == 'source1':
-              intervened_output = source1
-            elif targ_layer == 'source2':
-              intervened_output = source2
             else:
               intervened_output = base
             
@@ -266,7 +268,7 @@ def train_rotation_sum_joint(model, dataloader, args, layer, interchange_dim = N
   criterion = torch.nn.CrossEntropyLoss()
   for epoch in range(args.num_epochs):
     train_losses = []
-    for i, (imgs,labels,concepts) in enumerate(tqdm(dataloader)):
+    for i, (imgs,labels,concepts) in enumerate(dataloader):
         img_base, img_source1, img_source2 = imgs
         img_base = img_base.to(args.device)
         img_source1 = img_source1.to(args.device)
@@ -278,9 +280,9 @@ def train_rotation_sum_joint(model, dataloader, args, layer, interchange_dim = N
 
         Building the interventions
         '''
-        base,e01,e02,e03,l01,l02,l03 = model(img_base)
-        source1,e11,e12,e13,l11,l12,l13 = model(img_source1)
-        source2,e21,e22,e23,l21,l22,l23 = model(img_source2)
+        base,e01,e02,e03,d_c0,l01,l02,l03 = model(img_base)
+        source1,e11,e12,e13,d_c1,l11,l12,l13 = model(img_source1)
+        source2,e21,e22,e23,d_c2,l21,l22,l23 = model(img_source2)
         # Base
         A,B = torch.split(img_base,28,dim=-1)
         # Source (multi-source)
@@ -305,22 +307,25 @@ def train_rotation_sum_joint(model, dataloader, args, layer, interchange_dim = N
           site_idx = intervention['index']
           if targ_layer == 'e1':
             intervened_base = trainable_rot(e01, e11, site_idx = site_idx)
-            intervened_output,e1,e2,e3,l1,l2,l3 = model(img_base, intervention_encoder1 = intervened_base)
+            intervened_output,e1,e2,e3,d_c,l1,l2,l3 = model(img_base, intervention_encoder1 = intervened_base)
           elif targ_layer == 'e2':
             intervened_base = trainable_rot(e02, e12, site_idx = site_idx)
-            intervened_output,e1,e2,e3,l1,l2,l3 = model(img_base, intervention_encoder2 = intervened_base)
+            intervened_output,e1,e2,e3,d_c,l1,l2,l3 = model(img_base, intervention_encoder2 = intervened_base)
           elif targ_layer == 'e3':
             intervened_base = trainable_rot(e03, e13, site_idx = site_idx)
-            intervened_output,e1,e2,e3,l1,l2,l3 = model(img_base, intervention_encoder3 = intervened_base)
+            intervened_output,e1,e2,e3,d_c,l1,l2,l3 = model(img_base, intervention_encoder3 = intervened_base)
+          elif targ_layer == 'dc':
+            intervened_base = trainable_rot(d_c0, d_c1, site_idx = site_idx)
+            intervened_output,e1,e2,e3,d_c,l1,l2,l3 = model(img_base, intervention_dense_c = intervened_base)
           elif targ_layer == 'l1':
             intervened_base = trainable_rot(l01, l11, site_idx = site_idx)
-            intervened_output,e1,e2,e3,l1,l2,l3 = model(img_base, intervention_layer1 = intervened_base)
+            intervened_output,e1,e2,e3,d_c,l1,l2,l3 = model(img_base, intervention_layer1 = intervened_base)
           elif targ_layer == 'l2':
             intervened_base = trainable_rot(l02, l12, site_idx = site_idx)
-            intervened_output,e1,e2,e3,l1,l2,l3 = model(img_base, intervention_layer2 = intervened_base)
+            intervened_output,e1,e2,e3,d_c,l1,l2,l3 = model(img_base, intervention_layer2 = intervened_base)
           elif targ_layer == 'l3':
             intervened_base = trainable_rot(l03, l13, site_idx = site_idx)
-            intervened_output,e1,e2,e3,l1,l2,l3 = model(img_base, intervention_layer3 = intervened_base)
+            intervened_output,e1,e2,e3,d_c,l1,l2,l3 = model(img_base, intervention_layer3 = intervened_base)
           interv_labels = i_labels.type(torch.LongTensor).to(args.device)
 
           '''Optional code to visualize the effect of the intervention wrt the prediction'''
@@ -335,7 +340,7 @@ def train_rotation_sum_joint(model, dataloader, args, layer, interchange_dim = N
           optimizer.zero_grad()
           loss.backward(retain_graph=True)
           optimizer.step()
-    print(f'Epoch: {epoch} Loss: {np.mean(train_losses)}')
+    #print(f'Epoch: {epoch} Loss: {np.mean(train_losses)}')
   return trainable_rot
 
 def train_rotation_sum_split(model, dataloader, args, layer, interchange_dim = None):
@@ -349,7 +354,7 @@ def train_rotation_sum_split(model, dataloader, args, layer, interchange_dim = N
   criterion = torch.nn.CrossEntropyLoss()
   for epoch in range(args.num_epochs):
     train_losses = []
-    for i, (imgs,labels,concepts) in enumerate(tqdm(dataloader)):
+    for i, (imgs,labels,concepts) in enumerate(dataloader):
         img_base, img_source1, img_source2 = imgs
         img_base = img_base.to(args.device)
         img_source1 = img_source1.to(args.device)
@@ -439,9 +444,9 @@ class DistributedInterchangeIntervention(torch.nn.Module):
 
   def forward(self, base, source, site_idx):
     #print(base.shape, source.shape)
-    assert base.shape == source.shape, "Base and source must have the same shape"
+    #assert base.shape == source.shape, "Base and source must have the same shape"
     #print(base.shape[-1], self.layer_dim)
-    assert base.shape[-1] == self.layer_dim, "Base and source must have the same shape"
+    #assert base.shape[-1] == self.layer_dim, "Base and source must have the same shape"
 
     rotated_base = self.rotation_operator(base)
     #print('base',rotated_base)
@@ -453,7 +458,7 @@ class DistributedInterchangeIntervention(torch.nn.Module):
     rotated_base = rotated_base.reshape(-1, self.layer_dim // self.interchange_dim, self.interchange_dim)
     rotated_source = rotated_source.reshape(-1, self.layer_dim // self.interchange_dim, self.interchange_dim)
     # Do the interchange
-    rotated_base[:,0,:] = rotated_source[:,0,:]
+    rotated_base[:,site_idx,:] = rotated_source[:,site_idx,:]
     # Reshape
     rotated_base = rotated_base.reshape(-1, self.layer_dim)
     

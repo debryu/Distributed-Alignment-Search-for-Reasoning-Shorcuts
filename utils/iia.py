@@ -23,7 +23,10 @@ def compute_accuracy(backbone, rot_model, test_dl, layer, args):
           base,_,_,_,_,_,_,d0_l1,d0_l2,d0_l3,s0_l11, s0_l12, s0_l13, s0_l21, s0_l22, s0_l23 = backbone(img_base)
           source1,_,_,_,_,_,_,d1_l1,d1_l2,d1_l3,s1_l11, s1_l12, s1_l13, s1_l21, s1_l22, s1_l23 = backbone(img_source1)
           source2,_,_,_,_,_,_,d2_l1,d2_l2,d2_l3,s2_l11, s2_l12, s2_l13, s2_l21, s2_l22, s2_l23 = backbone(img_source2)
-
+        elif backbone.model_type == 'joint':
+          base,e01,e02,e03,d0_c,l01,l02,l03 = backbone(img_base)
+          source1,e11,e12,e13,d1_c,l11,l12,l13 = backbone(img_source1)
+          source2,e21,e22,e23,d2_c,l21,l22,l23 = backbone(img_source2)
         labels = torch.cat([labels],dim=0) # 16x3
         concepts = torch.cat([concepts],dim=0) # 16x3x4
 
@@ -62,6 +65,7 @@ def compute_accuracy(backbone, rot_model, test_dl, layer, args):
         st_8 = {'element':[2,3,2,3], 'source':[1,1,0,0]}
         #interv_9 = torch.cat((A,B,M,N),dim=-1).to(args.device)
 
+        # To detect the sum concept
         interventions = [
           #{'intervention':interv_1, 'labels': compute_intervention(concepts,st_1), 'index': 1}, # Index refers to the intervention location wrt the high level model
           #{'intervention':interv_2, 'labels': compute_intervention(concepts,st_2), 'index': 1},
@@ -77,15 +81,38 @@ def compute_accuracy(backbone, rot_model, test_dl, layer, args):
         site_type_single_digit1 = {'element':[0,1,2,3], 'source':[1,0,0,0]}
         interv_single_digit2 = torch.cat((I,B,C,D),dim=-1).to(args.device)
         site_type_single_digit2 = {'element':[0,1,2,3], 'source':[2,0,0,0]}
-
+        '''
         # To detect the single digit concept
         interventions = [
           {'intervention': interv_single_digit1, 'labels': compute_intervention(concepts,site_type_single_digit1), 'index': 0},
           {'intervention': interv_single_digit2, 'labels': compute_intervention(concepts,site_type_single_digit2), 'index': 0},
         ]
+        '''
         for intervention in interventions:
           site_idx = intervention['index']
-          if backbone.model_type == 'in-between':
+          if backbone.model_type == 'joint':
+            if targ_layer == 'e1':
+              intervened_base = rot_model(e01, e11, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = backbone(img_base, intervention_encoder1 = intervened_base)
+            elif targ_layer == 'e2':
+              intervened_base = rot_model(e02, e12, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = backbone(img_base, intervention_encoder2 = intervened_base)
+            elif targ_layer == 'e3':
+              intervened_base = rot_model(e03, e13, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = backbone(img_base, intervention_encoder3 = intervened_base)
+            elif targ_layer == 'dc':
+              intervened_base = rot_model(d0_c, d1_c, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = backbone(img_base, intervention_dense_c = intervened_base)
+            elif targ_layer == 'l1':
+              intervened_base = rot_model(l01, l11, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = backbone(img_base, intervention_layer1 = intervened_base)
+            elif targ_layer == 'l2':
+              intervened_base = rot_model(l02, l12, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = backbone(img_base, intervention_layer2 = intervened_base)
+            elif targ_layer == 'l3':
+              intervened_base = rot_model(l03, l13, site_idx = site_idx)
+              intervened_output,_,_,_,_,_,_,_ = backbone(img_base, intervention_layer3 = intervened_base)
+          elif backbone.model_type == 'in-between':
             if targ_layer == 'l1':
               intervened_base = rot_model(l01, l11, site_idx = site_idx)
               intervened_output,_,_,_,_,_,_,l1,l2,l3 = backbone(img_base, intervention_layer1 = intervened_base)
@@ -125,6 +152,8 @@ def compute_accuracy(backbone, rot_model, test_dl, layer, args):
             baseline,_,_,_,_,_,_,_,_,_, = backbone(intervention['intervention'])
           elif backbone.model_type == 'aligned':
             baseline,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_ = backbone(intervention['intervention'])
+          elif backbone.model_type == 'joint': 
+            baseline,_,_,_,_,_,_,_ = backbone(intervention['intervention'])
 
           i_labels = intervention['labels']
           if targ_layer == 'base':
@@ -169,9 +198,9 @@ def compute_accuracy_sum_joint(backbone, rot_model, test_dl, layer, args):
         img_base = img_base.to(args.device)
         img_source1 = img_source1.to(args.device)
         img_source2 = img_source2.to(args.device)
-        base,e01,e02,e03,l01,l02,l03 = backbone(img_base)
-        source1,e11,e12,e13,l11,l12,l13 = backbone(img_source1)
-        source2,e21,e22,e23,l11,l12,l13 = backbone(img_source2)
+        base,e01,e02,e03,d_c0,l01,l02,l03 = backbone(img_base)
+        source1,e11,e12,e13,d_c1,l11,l12,l13 = backbone(img_source1)
+        source2,e21,e22,e23,d_c2,l11,l12,l13 = backbone(img_source2)
         labels = torch.cat([labels],dim=0) # 16x3
         concepts = torch.cat([concepts],dim=0) # 16x3x2
         ''' 
@@ -196,23 +225,26 @@ def compute_accuracy_sum_joint(backbone, rot_model, test_dl, layer, args):
             i_labels = intervention['labels']
             if targ_layer == 'e1':
                 intervened_base = rot_model(e01, e11, site_idx = site_idx)
-                intervened_output,e1,e2,e3,l1,l2,l3 = backbone(img_base, intervention_encoder1 = intervened_base)
+                intervened_output,e1,e2,e3,d_c,l1,l2,l3 = backbone(img_base, intervention_encoder1 = intervened_base)
             elif targ_layer == 'e2':
                 intervened_base = rot_model(e02, e12, site_idx = site_idx)
-                intervened_output,e1,e2,e3,l1,l2,l3 = backbone(img_base, intervention_encoder2 = intervened_base)
+                intervened_output,e1,e2,e3,d_c,l1,l2,l3 = backbone(img_base, intervention_encoder2 = intervened_base)
             elif targ_layer == 'e3':
                 intervened_base = rot_model(e03, e13, site_idx = site_idx)
-                intervened_output,e1,e2,e3,l1,l2,l3 = backbone(img_base, intervention_encoder3 = intervened_base)
+                intervened_output,e1,e2,e3,d_c,l1,l2,l3 = backbone(img_base, intervention_encoder3 = intervened_base)
+            elif targ_layer == 'dc':
+                intervened_base = rot_model(d_c0, d_c1, site_idx = site_idx)
+                intervened_output,e1,e2,e3,d_c,l1,l2,l3 = backbone(img_base, intervention_dense_c = intervened_base)
             elif targ_layer == 'l1':
                 intervened_base = rot_model(l01, l11, site_idx = site_idx)
-                intervened_output,e1,e2,e3,l1,l2,l3 = backbone(img_base, intervention_layer1 = intervened_base)
+                intervened_output,e1,e2,e3,d_c,l1,l2,l3 = backbone(img_base, intervention_layer1 = intervened_base)
             elif targ_layer == 'l2':
                 intervened_base = rot_model(l02, l12, site_idx = site_idx)
-                intervened_output,e1,e2,e3,l1,l2,l3 = backbone(img_base, intervention_layer2 = intervened_base)
+                intervened_output,e1,e2,e3,d_c,l1,l2,l3 = backbone(img_base, intervention_layer2 = intervened_base)
             elif targ_layer == 'l3':
                 intervened_base = rot_model(l03, l13, site_idx = site_idx)
-                intervened_output,e1,e2,e3,l1,l2,l3 = backbone(img_base, intervention_layer3 = intervened_base)
-            baseline,_,_,_,_,_,_ = backbone(intervention['intervention'])      
+                intervened_output,e1,e2,e3,d_c,l1,l2,l3 = backbone(img_base, intervention_layer3 = intervened_base)
+            baseline,_,_,_,_,_,_,_ = backbone(intervention['intervention'])      
             pred_output = torch.argmax(intervened_output,dim=-1)
             baseline_output = torch.argmax(baseline,dim=-1)
             i_labels = i_labels.to(args.device)
