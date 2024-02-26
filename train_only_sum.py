@@ -16,6 +16,8 @@ args.num_workers = 1
 args.eval_check = 10
 args.file_name = 'das_summation_dataset_no_interventions'
 args.sequence_len = 2
+args.lr_joint = 1e-3
+args.lr_split = 1e-3
 args.patience = 3
 args.train_examples = 10000
 args.test_examples = 10000
@@ -53,7 +55,7 @@ def train_split(train_dl,test_dl,args):
     model = ADDITION_SPLIT(args = args)
     model = model.to(args.device)
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr_split)
     learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
     patience = 0
     max_lr_decrease = 5
@@ -112,10 +114,10 @@ def train_joint(train_dl,test_dl,args):
     model = ADDITION_JOINT(args = args)
     model = model.to(args.device)
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr_joint)
     learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
     patience = 0
-    max_lr_decrease = 5
+    max_lr_decrease = 6
     best_accuracy = 0
     
     model.train()
@@ -174,9 +176,18 @@ def main():
     train_dl = torch.utils.data.DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     test_dl = torch.utils.data.DataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
 
-
+    '''
+    Train the disentangled model
+        The digit images are passed separately to the encoder
+        which ideally should encode the number
+    '''
     #args.saved_model_name = 'disentangled'
     #train_split(train_dl,test_dl,args)
+
+    '''
+    Train the entangled model
+        The digit images are passed as a single image with double the size to a different encoder
+    '''
     args.saved_model_name = 'entangled'
     train_joint(train_dl,test_dl,args)
     
