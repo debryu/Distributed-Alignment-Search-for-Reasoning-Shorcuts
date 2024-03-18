@@ -1,13 +1,13 @@
 # Usage
-  ### Create the environment
+  Create the environment
   ```
   conda create -n reasoning_shortcuts python=3.9
   ```
-  ### Activate it
+  Activate it
   ```
   conda activate reasoning_shortcuts 
   ```
-  ### Install requirements
+  Install requirements
   ```
   pip install -r requirements.tx
   ```
